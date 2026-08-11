@@ -1,0 +1,24 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+
+bot:
+  evolution:
+    base-url: ${EVOLUTION_API_URL}
+    api-key: ${EVOLUTION_API_KEY}
+    webhook-secret: ${EVOLUTION_WEBHOOK_SECRET}
+  sgsm-ia:
+    base-url: ${SGSM_IA_URL}
+  sgsm:
+    base-url: ${SGSM_URL}
+  auth:
+    base-url: ${AUTH_URL}
+  sistema:
+    jwt: ${BOT_SISTEMA_JWT}
+
+logging:
+  level:
+    root: INFO
+    br.com.sgsm.whatsapp: INFO

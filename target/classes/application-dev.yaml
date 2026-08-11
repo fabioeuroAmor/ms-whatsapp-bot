@@ -1,0 +1,23 @@
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+bot:
+  evolution:
+    base-url: http://localhost:8090
+    api-key: sgsm-evolution-key
+    webhook-secret: sgsm-webhook-secret-dev
+  sgsm-ia:
+    base-url: http://localhost:8082
+  sgsm:
+    base-url: http://localhost:8080
+  auth:
+    base-url: http://localhost:8081
+  sistema:
+    jwt: ${BOT_SISTEMA_JWT:}
+
+logging:
+  level:
+    br.com.sgsm.whatsapp: DEBUG
