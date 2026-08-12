@@ -21,5 +21,6 @@ C:\AmbienteDev\ms-whatsapp-bot\src\main\java\br\com\sgsm\whatsapp\dto\PacienteCr
 C:\AmbienteDev\ms-whatsapp-bot\src\main\java\br\com\sgsm\whatsapp\exception\GlobalExceptionHandler.java
 C:\AmbienteDev\ms-whatsapp-bot\src\main\java\br\com\sgsm\whatsapp\MsWhatsappBotApplication.java
 C:\AmbienteDev\ms-whatsapp-bot\src\main\java\br\com\sgsm\whatsapp\service\BotOrquestradorService.java
+C:\AmbienteDev\ms-whatsapp-bot\src\main\java\br\com\sgsm\whatsapp\service\BotSistemaTokenService.java
 C:\AmbienteDev\ms-whatsapp-bot\src\main\java\br\com\sgsm\whatsapp\service\ExecutorAcaoService.java
 C:\AmbienteDev\ms-whatsapp-bot\src\main\java\br\com\sgsm\whatsapp\service\SessaoService.java

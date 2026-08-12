@@ -26,7 +26,7 @@ public record BotProperties(
 
     public record Auth(String baseUrl) {}
 
-    public record Sistema(String jwt) {}
+    public record Sistema(String jwt, String email, String senha) {}
 
     public record Sessao(int ttlMinutos, int historicoMax) {}
 

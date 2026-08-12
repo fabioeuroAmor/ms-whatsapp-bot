@@ -17,6 +17,8 @@ bot:
     base-url: http://localhost:8081
   sistema:
     jwt: ${BOT_SISTEMA_JWT:}
+    email: ${BOT_SISTEMA_EMAIL:bot@sgsm.internal}
+    senha: ${BOT_SISTEMA_SENHA:SenhaForte#Bot2026}
 
 logging:
   level:
