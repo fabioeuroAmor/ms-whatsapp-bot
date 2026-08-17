@@ -36,4 +36,7 @@ public class SessaoBot implements Serializable {
 
     @Builder.Default
     private Map<String, String> dadosCadastro = new HashMap<>();
+
+    @Builder.Default
+    private int tentativasSemCpf = 0;
 }

@@ -27,6 +27,7 @@ import java.util.UUID;
 public class BotOrquestradorService {
 
     private static final Logger log = LoggerFactory.getLogger(BotOrquestradorService.class);
+    private static final int LIMITE_TENTATIVAS_SEM_CPF = 2;
 
     private final SessaoService sessaoService;
     private final SgsmIaClient sgsmIaClient;
@@ -81,9 +82,28 @@ public class BotOrquestradorService {
             return;
         }
 
+        // 2.5 Se há confirmação pendente (AGENDAR/CANCELAR/CADASTRAR), resolve confirmação/recusa
+        // em linguagem natural localmente, sem depender do classificador da IA acertar o intent CONFIRMAR/RECUSAR.
+        if (sessao.getConfirmacaoPendente() != null) {
+            String textoNormalizado = texto.trim().toLowerCase();
+            if (pareceConfirmacao(textoNormalizado)) {
+                String resultado = executarConfirmacao(sessao);
+                sessao.setConfirmacaoPendente(null);
+                sessaoService.salvar(sessao);
+                evolutionApiClient.enviarTexto(numero, resultado);
+                return;
+            }
+            if (pareceRecusa(textoNormalizado)) {
+                sessao.setConfirmacaoPendente(null);
+                sessaoService.salvar(sessao);
+                evolutionApiClient.enviarTexto(numero, "Tudo bem! " + menuPrincipal(sessao));
+                return;
+            }
+        }
+
         // 3. RAG: Classificar intenção via sgsm-ia
         var classificarReq = new ClassificarRequest(
-                texto,
+                traduzirOpcaoMenu(texto.trim(), sessao),
                 sessao.getHistorico() != null
                         ? sessao.getHistorico().stream()
                                 .map(m -> new MensagemHistorico(m.getPapel(), m.getTexto()))
@@ -110,21 +130,43 @@ public class BotOrquestradorService {
             sessaoService.adicionarHistorico(sessao, "ASSISTENTE", resp.getRespostaUsuario());
         }
 
+        // 4.5 Circuit-breaker: evita ficar repetindo o pedido de CPF indefinidamente
+        if (cadastroPendenteSemCpf(sessao)) {
+            String cpfInformado = resp.getEntidades() != null ? resp.getEntidades().getCpf() : null;
+            if (cpfInformado == null || cpfInformado.isBlank()) {
+                sessao.setTentativasSemCpf(sessao.getTentativasSemCpf() + 1);
+                if (sessao.getTentativasSemCpf() >= LIMITE_TENTATIVAS_SEM_CPF) {
+                    sessao.setDadosCadastro(new HashMap<>());
+                    sessao.setConfirmacaoPendente(null);
+                    sessao.setTentativasSemCpf(0);
+                    sessaoService.salvar(sessao);
+                    evolutionApiClient.enviarTexto(numero,
+                            "Sem o CPF não consigo concluir o cadastro por aqui. "
+                                    + "Entre em contato com nossa central de atendimento para prosseguir.\n\n"
+                                    + menuPrincipal(sessao));
+                    return;
+                }
+            } else {
+                sessao.setTentativasSemCpf(0);
+            }
+        }
+
         // 5. Executa ação baseada no intent
         String respostaFinal = switch (resp.getIntent()) {
             case CONSULTAR, CONVERSAR -> resp.getRespostaUsuario();
 
             case AUTENTICAR -> {
                 if (sessao.getAccessToken() == null) {
-                    yield resp.getRespostaUsuario()
-                            + "\n\n_Digite seu e-mail cadastrado para receber um código de verificação._";
+                    yield iniciarAutenticacaoOuPedirEmail(sessao, resp, resp.getRespostaUsuario()
+                            + "\n\n_Digite seu e-mail cadastrado para receber um código de verificação._");
                 }
                 yield "Você já está autenticado como " + sessao.getPerfil() + ".";
             }
 
             case AGENDAR -> {
                 if (sessao.getAccessToken() == null) {
-                    yield "Para agendar, primeiro preciso confirmar sua identidade.\n_Digite seu e-mail cadastrado:_";
+                    yield iniciarAutenticacaoOuPedirEmail(sessao, resp,
+                            "Para agendar, primeiro preciso confirmar sua identidade.\n_Digite seu e-mail cadastrado:_");
                 }
                 if (!resp.getDadosFaltantes().isEmpty() || !resp.isRequerConfirmacao()) {
                     yield resp.getRespostaUsuario();
@@ -137,7 +179,8 @@ public class BotOrquestradorService {
 
             case CANCELAR -> {
                 if (sessao.getAccessToken() == null) {
-                    yield "Para cancelar, primeiro preciso confirmar sua identidade.\n_Digite seu e-mail cadastrado:_";
+                    yield iniciarAutenticacaoOuPedirEmail(sessao, resp,
+                            "Para cancelar, primeiro preciso confirmar sua identidade.\n_Digite seu e-mail cadastrado:_");
                 }
                 if (resp.getEntidades() != null && resp.getEntidades().getAgendamentoId() != null) {
                     sessao.setConfirmacaoPendente(new ConfirmacaoPendente("CANCELAR",
@@ -152,6 +195,7 @@ public class BotOrquestradorService {
                 if (resp.isRequerConfirmacao()) {
                     sessao.setConfirmacaoPendente(new ConfirmacaoPendente("CADASTRAR",
                             new HashMap<>(toObjectMap(sessao.getDadosCadastro()))));
+                    yield resp.getRespostaUsuario() + "\n\n_Responda *SIM* para confirmar o cadastro._";
                 }
                 yield resp.getRespostaUsuario();
             }
@@ -178,6 +222,55 @@ public class BotOrquestradorService {
     }
 
     // --- Métodos privados de suporte ---
+
+    private boolean pareceConfirmacao(String textoNormalizado) {
+        return textoNormalizado.equals("sim") || textoNormalizado.equals("ok")
+                || textoNormalizado.startsWith("sim")
+                || textoNormalizado.contains("confirm")
+                || textoNormalizado.contains("pode confirmar")
+                || textoNormalizado.contains("pode prosseguir")
+                || textoNormalizado.contains("isso mesmo")
+                || textoNormalizado.equals("correto");
+    }
+
+    private boolean pareceRecusa(String textoNormalizado) {
+        return textoNormalizado.equals("não") || textoNormalizado.equals("nao")
+                || textoNormalizado.startsWith("não") || textoNormalizado.startsWith("nao")
+                || textoNormalizado.contains("cancel")
+                || textoNormalizado.contains("recus");
+    }
+
+    // Traduz opções numéricas do menu (1-4) para linguagem natural, já que o classificador
+    // da IA não tem contexto de qual menu foi exibido e não interpreta dígitos soltos de forma confiável.
+    private String traduzirOpcaoMenu(String texto, SessaoBot sessao) {
+        boolean autenticado = sessao.getAccessToken() != null;
+        String traduzido = switch (texto) {
+            case "1" -> autenticado ? "Quero ver meus agendamentos" : "Quero agendar uma consulta";
+            case "2" -> autenticado ? "Quero agendar uma consulta" : "Quero me cadastrar";
+            case "3" -> autenticado ? "Quero cancelar um agendamento" : "Quero informações sobre os médicos";
+            case "4" -> autenticado ? "Quero falar com a IA/assistente" : null;
+            default -> null;
+        };
+        return traduzido != null ? traduzido : texto;
+    }
+
+    private boolean cadastroPendenteSemCpf(SessaoBot sessao) {
+        Map<String, String> dados = sessao.getDadosCadastro();
+        return dados != null && dados.containsKey("nomeCompleto") && !dados.containsKey("cpf");
+    }
+
+    private String iniciarAutenticacaoOuPedirEmail(SessaoBot sessao, ClassificarResponse resp, String mensagemPedidoEmail) {
+        String email = resp.getEntidades() != null ? resp.getEntidades().getEmail() : null;
+        if (email == null || email.isBlank()) {
+            return mensagemPedidoEmail;
+        }
+        if (!executorAcaoService.enviarOtp(sessao.getNumero(), email)) {
+            return "Não encontrei nenhum cadastro com o e-mail *" + email
+                    + "*. Verifique se digitou corretamente ou digite *2* no menu para se cadastrar.";
+        }
+        sessao.setConfirmacaoPendente(new ConfirmacaoPendente("OTP", Map.of("email", email)));
+        return "Enviei um código de verificação para o seu WhatsApp.\n_Digite o código que você recebeu:_";
+    }
 
     private String executarConfirmacao(SessaoBot sessao) {
         return switch (sessao.getConfirmacaoPendente().getTipo()) {
@@ -214,9 +307,11 @@ public class BotOrquestradorService {
             // 3. Inicia fluxo OTP para ativar e autenticar
             sessao.setConfirmacaoPendente(
                     new ConfirmacaoPendente("OTP", Map.of("email", email)));
-            executorAcaoService.enviarOtp(sessao.getNumero(), email);
+            boolean otpEnviado = executorAcaoService.enviarOtp(sessao.getNumero(), email);
 
-            return "Cadastro criado! Para ativar sua conta, digite o código que acabei de enviar para este WhatsApp.";
+            return otpEnviado
+                    ? "Cadastro criado! Para ativar sua conta, digite o código que acabei de enviar para este WhatsApp."
+                    : "Cadastro criado, mas houve um problema ao enviar o código de verificação agora. Tente novamente em alguns instantes.";
         } catch (Exception e) {
             log.error("Erro no cadastro para {}: {}", sessao.getNumero(), e.getMessage());
             return "Erro ao realizar cadastro. Verifique se o CPF ou e-mail já estão cadastrados.";
@@ -264,8 +359,18 @@ public class BotOrquestradorService {
             sessao.setDadosCadastro(new HashMap<>());
         }
         if (ent == null) return;
+
+        // Se um nome diferente do já coletado aparece, é outra pessoa: descarta os dados
+        // antigos em vez de misturar (ex.: CPF de uma pessoa com nome de outra).
+        String nomeExistente = sessao.getDadosCadastro().get("nomeCompleto");
+        if (ent.getNomeCompleto() != null && nomeExistente != null
+                && !nomeExistente.equalsIgnoreCase(ent.getNomeCompleto())) {
+            sessao.getDadosCadastro().clear();
+        }
+
         if (ent.getNomeCompleto() != null) sessao.getDadosCadastro().put("nomeCompleto", ent.getNomeCompleto());
-        if (ent.getCpf() != null) sessao.getDadosCadastro().put("cpf", ent.getCpf());
+        // Ignora CPF mascarado/redigido (ex.: "***.***.***-**") vindo da IA: não é um valor utilizável.
+        if (ent.getCpf() != null && !ent.getCpf().contains("*")) sessao.getDadosCadastro().put("cpf", ent.getCpf());
         if (ent.getDataNascimento() != null) sessao.getDadosCadastro().put("dataNascimento", ent.getDataNascimento());
         if (ent.getEmail() != null) sessao.getDadosCadastro().put("email", ent.getEmail());
     }

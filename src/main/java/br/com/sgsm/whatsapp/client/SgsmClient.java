@@ -38,6 +38,14 @@ public class SgsmClient {
                 .body(new ParameterizedTypeReference<>() {});
     }
 
+    public List<Map<String, Object>> listarEstabelecimentosPorMedico(String medicoId, String accessToken) {
+        return sgsmClient.get()
+                .uri("/v1/api/agendamentos/medico/{medicoId}/estabelecimentos", medicoId)
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
+
     public Map<String, Object> criarAgendamento(AgendamentoCreateRequest req, String accessToken) {
         return sgsmClient.post()
                 .uri("/v1/api/agendamentos")
