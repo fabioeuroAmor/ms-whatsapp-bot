@@ -165,8 +165,14 @@ public class BotOrquestradorService {
                 if (sessao.getConfirmacaoPendente() == null) {
                     yield "Não há nenhuma ação pendente para confirmar.";
                 }
+                String tipoAnterior = sessao.getConfirmacaoPendente().getTipo();
                 String resultado = executarConfirmacao(sessao);
-                sessao.setConfirmacaoPendente(null);
+                // Só limpa se a execução não tiver transicionado para um novo estado pendente
+                // (ex.: CADASTRAR com sucesso vira OTP dentro de executarCadastro())
+                if (sessao.getConfirmacaoPendente() != null
+                        && tipoAnterior.equals(sessao.getConfirmacaoPendente().getTipo())) {
+                    sessao.setConfirmacaoPendente(null);
+                }
                 yield resultado;
             }
 
@@ -233,6 +239,13 @@ public class BotOrquestradorService {
             sessao.setAccessToken((String) resp.get("accessToken"));
             sessao.setRefreshToken((String) resp.get("refreshToken"));
             sessao.setPerfil((String) resp.get("tipoPerfil"));
+            try {
+                var me = authClient.me(sessao.getAccessToken());
+                Object referenciaId = me.get("referenciaId");
+                sessao.setUsuarioId(referenciaId != null ? referenciaId.toString() : null);
+            } catch (Exception e) {
+                log.error("Erro ao buscar referenciaId em /auth/me para {}: {}", sessao.getNumero(), e.getMessage());
+            }
             sessao.setConfirmacaoPendente(null);
             sessaoService.salvar(sessao);
             evolutionApiClient.enviarTexto(numero, "Conta ativada com sucesso! " + menuPrincipal(sessao));
