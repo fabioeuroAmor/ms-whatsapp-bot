@@ -9,6 +9,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 @Service
@@ -68,10 +73,29 @@ public class ExecutorAcaoService {
         }
     }
 
+    private static final DateTimeFormatter FORMATO_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final ZoneId FUSO_BRASIL = ZoneId.of("America/Sao_Paulo");
+
     private String combinarDataHora(String data, String hora) {
         if (data == null || hora == null) return null;
-        // Suporte a formatos "2026-08-10" + "14:30" → "2026-08-10T14:30:00"
-        String horaFormatada = hora.contains(":") && hora.length() == 5 ? hora + ":00" : hora;
-        return data + "T" + horaFormatada;
+        LocalDate localDate = parseData(data);
+        LocalTime localTime = parseHora(hora);
+        return ZonedDateTime.of(localDate, localTime, FUSO_BRASIL)
+                .toOffsetDateTime()
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+    }
+
+    private LocalDate parseData(String data) {
+        if (data.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return LocalDate.parse(data);
+        }
+        if (data.matches("\\d{2}/\\d{2}/\\d{4}")) {
+            return LocalDate.parse(data, FORMATO_BR);
+        }
+        throw new IllegalArgumentException("Formato de data não reconhecido: " + data);
+    }
+
+    private LocalTime parseHora(String hora) {
+        return LocalTime.parse(hora.length() == 5 ? hora + ":00" : hora);
     }
 }

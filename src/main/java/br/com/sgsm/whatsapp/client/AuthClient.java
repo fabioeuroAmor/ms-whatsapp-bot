@@ -44,4 +44,12 @@ public class AuthClient {
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
     }
+
+    public Map<String, Object> me(String accessToken) {
+        return authClient.get()
+                .uri("/v1/api/auth/me")
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
 }
