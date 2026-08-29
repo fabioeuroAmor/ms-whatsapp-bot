@@ -16,4 +16,5 @@ public class PacienteCreateRequest {
     private String dataNascimento;
     private String email;
     private String telefone;
+    private Boolean consentimentoLgpd;
 }

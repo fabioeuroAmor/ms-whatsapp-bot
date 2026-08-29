@@ -29,6 +29,11 @@ public class SessaoBot implements Serializable {
     @Builder.Default
     private boolean consentimentoAceito = false;
 
+    // LGPD 3.1 — consentimento específico do cadastro clínico (nome/CPF/dados de saúde),
+    // distinto de consentimentoAceito acima (que é sobre uso do canal WhatsApp).
+    @Builder.Default
+    private boolean consentimentoCadastroAceito = false;
+
     @Builder.Default
     private List<MensagemHistorico> historico = new ArrayList<>();
 

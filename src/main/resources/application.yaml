@@ -23,3 +23,10 @@ bot:
       Ao continuar, você concorda com nossa política de privacidade e com o tratamento dos seus dados conforme a *LGPD*.
 
       Digite *ACEITO* para continuar.
+  consentimento-cadastro:
+    mensagem: |
+      Antes de continuar seu cadastro, preciso do seu consentimento explícito.
+
+      Seus *dados de saúde* (nome, CPF, data de nascimento, e-mail) serão tratados conforme a *LGPD*, para fins de agendamento e atendimento médico.
+
+      Digite *ACEITO* para confirmar e continuar o cadastro.
