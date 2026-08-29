@@ -10,7 +10,8 @@ public record BotProperties(
         Auth auth,
         Sistema sistema,
         Sessao sessao,
-        Consentimento consentimento
+        Consentimento consentimento,
+        ConsentimentoCadastro consentimentoCadastro
 ) {
 
     public record Evolution(
@@ -31,4 +32,8 @@ public record BotProperties(
     public record Sessao(int ttlMinutos, int historicoMax) {}
 
     public record Consentimento(String mensagem) {}
+
+    // LGPD 3.1 — consentimento específico do cadastro clínico (distinto do consentimento
+    // de uso do canal WhatsApp acima, que é sobre a política de privacidade geral).
+    public record ConsentimentoCadastro(String mensagem) {}
 }

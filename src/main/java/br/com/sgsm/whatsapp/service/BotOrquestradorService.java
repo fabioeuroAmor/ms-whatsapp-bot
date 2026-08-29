@@ -74,7 +74,25 @@ public class BotOrquestradorService {
             return;
         }
 
-        // 2. Se há OTP pendente, verificar
+        // 2. Consentimento LGPD do cadastro clínico, se pendente (distinto do consentimento
+        // de canal acima: este é sobre nome/CPF/dados de saúde, disparado só quando o
+        // usuário tenta se cadastrar — ver ramo CADASTRAR do switch abaixo).
+        if (sessao.getConfirmacaoPendente() != null
+                && "CONSENTIMENTO_CADASTRO".equals(sessao.getConfirmacaoPendente().getTipo())) {
+            if ("ACEITO".equalsIgnoreCase(texto.trim())) {
+                sessao.setConsentimentoCadastroAceito(true);
+                sessao.setConfirmacaoPendente(null);
+                sessaoService.salvar(sessao);
+                evolutionApiClient.enviarTexto(numero,
+                        "Consentimento registrado! Pode me informar seu nome completo, CPF, data de nascimento e e-mail para o cadastro.");
+            } else {
+                evolutionApiClient.enviarTexto(numero, props.consentimentoCadastro().mensagem());
+                sessaoService.salvar(sessao);
+            }
+            return;
+        }
+
+        // 3. Se há OTP pendente, verificar
         if (sessao.getConfirmacaoPendente() != null
                 && "OTP".equals(sessao.getConfirmacaoPendente().getTipo())) {
             processarOtp(numero, texto, sessao);
@@ -147,6 +165,13 @@ public class BotOrquestradorService {
             }
 
             case CADASTRAR -> {
+                // LGPD 3.1: consentimento clínico é obrigatório antes de coletar qualquer
+                // dado de cadastro — a próxima mensagem do usuário é tratada pelo gate
+                // CONSENTIMENTO_CADASTRO no topo de processar(), não pelo RAG.
+                if (!sessao.isConsentimentoCadastroAceito()) {
+                    sessao.setConfirmacaoPendente(new ConfirmacaoPendente("CONSENTIMENTO_CADASTRO", Map.of()));
+                    yield props.consentimentoCadastro().mensagem();
+                }
                 // Coleta dados progressivamente turno a turno
                 atualizarDadosCadastro(sessao, resp.getEntidades());
                 if (resp.isRequerConfirmacao()) {
@@ -208,7 +233,10 @@ public class BotOrquestradorService {
                     (String) payload.get("cpf"),
                     (String) payload.get("dataNascimento"),
                     email,
-                    sessao.getNumero()
+                    sessao.getNumero(),
+                    // Gate CONSENTIMENTO_CADASTRO no case CADASTRAR garante que este ponto só
+                    // é alcançado após o usuário aceitar explicitamente (ver processar()).
+                    sessao.isConsentimentoCadastroAceito()
             );
             var pacienteResp = sgsmClient.criarPaciente(pacienteReq, props.sistema().jwt());
             String pacienteId = (String) pacienteResp.get("id");
