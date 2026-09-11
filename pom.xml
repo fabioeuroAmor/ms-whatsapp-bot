@@ -88,6 +88,9 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <!-- APM Glowroot: agente anexado automaticamente no "mvn spring-boot:run".
+                         UI standalone deste servico em http://localhost:4003 -->
+                    <jvmArguments>-javaagent:C:/AmbienteDev/glowroot/glowroot/glowroot.jar -Dglowroot.conf.dir=C:/AmbienteDev/glowroot/data/ms-whatsapp-bot -Dglowroot.data.dir=C:/AmbienteDev/glowroot/data/ms-whatsapp-bot -Dglowroot.log.dir=C:/AmbienteDev/glowroot/data/ms-whatsapp-bot -Dglowroot.tmp.dir=C:/AmbienteDev/glowroot/data/ms-whatsapp-bot</jvmArguments>
                 </configuration>
             </plugin>
         </plugins>
