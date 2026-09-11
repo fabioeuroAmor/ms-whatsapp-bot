@@ -1,5 +1,6 @@
 package br.com.sgsm.whatsapp.config;
 
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,9 +13,11 @@ import java.time.Duration;
 public class RestClientConfig {
 
     private final BotProperties props;
+    private final ObservationRegistry observationRegistry;
 
-    public RestClientConfig(BotProperties props) {
+    public RestClientConfig(BotProperties props, ObservationRegistry observationRegistry) {
         this.props = props;
+        this.observationRegistry = observationRegistry;
     }
 
     private static SimpleClientHttpRequestFactory factory(Duration connectTimeout, Duration readTimeout) {
@@ -24,10 +27,17 @@ public class RestClientConfig {
         return factory;
     }
 
+    // observationRegistry ligado explicitamente em cada RestClient: sem isso, as chamadas
+    // entre servicos nao propagam o traceparent nem aparecem no Zipkin - o auto-configurado
+    // RestClient.Builder do Spring nao se materializou aqui.
+    private RestClient.Builder builder() {
+        return RestClient.builder().observationRegistry(observationRegistry);
+    }
+
     @Bean
     @Qualifier("evolutionClient")
     public RestClient evolutionClient() {
-        return RestClient.builder()
+        return builder()
                 .baseUrl(props.evolution().baseUrl())
                 .defaultHeader("apikey", props.evolution().apiKey())
                 .build();
@@ -37,7 +47,7 @@ public class RestClientConfig {
     @Qualifier("sgsmIaRestClient")
     public RestClient sgsmIaRestClient() {
         // Timeout de 45s: o LLM pode demorar mas precisa ser responsivo para WhatsApp
-        return RestClient.builder()
+        return builder()
                 .baseUrl(props.sgsmIa().baseUrl())
                 .requestFactory(factory(Duration.ofSeconds(5), Duration.ofSeconds(45)))
                 .build();
@@ -46,7 +56,7 @@ public class RestClientConfig {
     @Bean
     @Qualifier("sgsmRestClient")
     public RestClient sgsmRestClient() {
-        return RestClient.builder()
+        return builder()
                 .baseUrl(props.sgsm().baseUrl())
                 .requestFactory(factory(Duration.ofSeconds(5), Duration.ofSeconds(15)))
                 .build();
@@ -55,7 +65,7 @@ public class RestClientConfig {
     @Bean
     @Qualifier("authRestClient")
     public RestClient authRestClient() {
-        return RestClient.builder()
+        return builder()
                 .baseUrl(props.auth().baseUrl())
                 .requestFactory(factory(Duration.ofSeconds(5), Duration.ofSeconds(10)))
                 .build();
