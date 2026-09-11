@@ -28,6 +28,10 @@ logging:
     format:
       console: ecs
 
+notificacao:
+  agenda-diaria:
+    cron: ${NOTIFICACAO_AGENDA_DIARIA_CRON:0 0 7 * * *}
+
 bot:
   evolution:
     instance: ${EVOLUTION_INSTANCE:sgsm-bot}
