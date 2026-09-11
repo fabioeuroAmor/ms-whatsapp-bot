@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,7 +32,16 @@ public class WebhookController {
 
     @PostMapping("/evolution")
     @Operation(summary = "Recebe eventos messages.upsert da Evolution API e processa mensagens")
-    public ResponseEntity<Void> receberEvento(@RequestBody EvolutionWebhookPayload payload) {
+    public ResponseEntity<Void> receberEvento(
+            @RequestBody EvolutionWebhookPayload payload,
+            @RequestHeader(value = "X-Webhook-Secret", required = false) String webhookSecret) {
+        // A instancia sgsm-bot na Evolution API foi configurada para mandar esse header em toda
+        // chamada de webhook (POST /webhook/set/sgsm-bot) - sem ele, qualquer requisicao externa
+        // conseguia forjar mensagens como se fossem de qualquer numero de telefone.
+        if (!props.evolution().webhookSecret().equals(webhookSecret)) {
+            log.warn("Webhook recusado: header X-Webhook-Secret ausente ou invalido.");
+            return ResponseEntity.status(401).build();
+        }
         try {
             // Processa apenas mensagens recebidas (não enviadas pelo bot)
             if (!"messages.upsert".equals(payload.getEvent())) {
