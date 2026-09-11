@@ -1,5 +1,6 @@
 package br.com.sgsm.whatsapp.client;
 
+import br.com.sgsm.whatsapp.config.BotProperties;
 import br.com.sgsm.whatsapp.dto.AuthRegistrarRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
@@ -13,14 +14,19 @@ import java.util.Map;
 public class AuthClient {
 
     private final RestClient authClient;
+    private final BotProperties props;
 
-    public AuthClient(@Qualifier("authRestClient") RestClient authClient) {
+    public AuthClient(@Qualifier("authRestClient") RestClient authClient, BotProperties props) {
         this.authClient = authClient;
+        this.props = props;
     }
 
+    // ms-sboot-auth só aceita POST /otp/gerar com o JWT de sistema (perfil DESENVOLVEDOR) —
+    // o bot é o único autorizado a disparar OTP em nome de outro usuário.
     public Map<String, Object> gerarOtp(String email) {
         return authClient.post()
                 .uri("/v1/api/auth/otp/gerar")
+                .header("Authorization", "Bearer " + props.sistema().jwt())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("email", email))
                 .retrieve()

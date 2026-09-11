@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="8c45c6f7-8ea1-4cbb-9899-ebf4f1551e65" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/claudeCodeEditorTabs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/sgsm/whatsapp/client/AuthClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/sgsm/whatsapp/client/AuthClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/application.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/client/AuthClient$3.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/client/AuthClient$3.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/client/AuthClient.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/client/AuthClient.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Auth.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Auth.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Consentimento.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Consentimento.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Evolution.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Evolution.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Sessao.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Sessao.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Sgsm.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Sgsm.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$SgsmIa.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$SgsmIa.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Sistema.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties$Sistema.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/config/BotProperties.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/domain/SessaoBot$SessaoBotBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/domain/SessaoBot$SessaoBotBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/domain/SessaoBot.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/domain/SessaoBot.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/dto/PacienteCreateRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/dto/PacienteCreateRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/service/BotOrquestradorService$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/service/BotOrquestradorService$1.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/service/BotOrquestradorService.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/service/BotOrquestradorService.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/service/ExecutorAcaoService.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/sgsm/whatsapp/service/ExecutorAcaoService.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/ms-whatsapp-bot-0.0.1-SNAPSHOT.jar" beforeDir="false" afterPath="$PROJECT_DIR$/target/ms-whatsapp-bot-0.0.1-SNAPSHOT.jar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/ms-whatsapp-bot-0.0.1-SNAPSHOT.jar.original" beforeDir="false" afterPath="$PROJECT_DIR$/target/ms-whatsapp-bot-0.0.1-SNAPSHOT.jar.original" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="customMavenHome" value="C:\apache-maven-3.6.3" />
+        <option name="mavenHomeTypeForPersistence" value="CUSTOM" />
+        <option name="userSettingsFile" value="C:\apache-maven-3.6.3\conf\settingsApache.xml" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
+  <component name="ProjectId" id="3HmuuxGxAMvtezakSaW9XG2iF2d" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.ms-whatsapp-bot.executor&quot;: &quot;Run&quot;,
+    &quot;Maven.ms-whatsapp-bot [clean,install,-U].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/AmbienteDev/ms-whatsapp-bot&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.build&quot;
+  }
+}</component>
+  <component name="RunAnythingCache">
+    <option name="myCommands">
+      <command value="mvn clean install -U" />
+    </option>
+  </component>
+  <component name="RunManager">
+    <configuration name="ms-whatsapp-bot" type="Application" factoryName="Application">
+      <option name="envFilePaths">
+        <option value="$PROJECT_DIR$/../.env" />
+      </option>
+      <option name="MAIN_CLASS_NAME" value="br.com.sgsm.whatsapp.MsWhatsappBotApplication" />
+      <module name="ms-whatsapp-bot" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-2fc7cc6b9a17-intellij.indexing.shared.core-IU-253.33514.17" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="8c45c6f7-8ea1-4cbb-9899-ebf4f1551e65" name="Changes" comment="" />
+      <created>1786485792164</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1786485792164</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="OPEN_GENERIC_TABS">
+      <map>
+        <entry key="d0e9a194-0771-479d-b65c-a62d5c073ce3" value="TOOL_WINDOW" />
+      </map>
+    </option>
+    <option name="TAB_STATES">
+      <map>
+        <entry key="d0e9a194-0771-479d-b65c-a62d5c073ce3">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="HEAD" />
+                      </list>
+                    </value>
+                  </entry>
+                  <entry key="roots">
+                    <value>
+                      <list>
+                        <option value="$PROJECT_DIR$" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+              <option name="SHOW_ONLY_AFFECTED_CHANGES" value="true" />
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
