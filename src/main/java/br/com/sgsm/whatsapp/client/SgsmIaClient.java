@@ -1,8 +1,8 @@
 package br.com.sgsm.whatsapp.client;
 
-import br.com.sgsm.whatsapp.config.BotProperties;
 import br.com.sgsm.whatsapp.dto.ClassificarRequest;
 import br.com.sgsm.whatsapp.dto.ClassificarResponse;
+import br.com.sgsm.whatsapp.service.SistemaAuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,16 +16,16 @@ public class SgsmIaClient {
     private static final Logger log = LoggerFactory.getLogger(SgsmIaClient.class);
 
     private final RestClient sgsmIaClient;
-    private final BotProperties props;
+    private final SistemaAuthService sistemaAuthService;
 
     public SgsmIaClient(@Qualifier("sgsmIaRestClient") RestClient sgsmIaClient,
-                        BotProperties props) {
+                        SistemaAuthService sistemaAuthService) {
         this.sgsmIaClient = sgsmIaClient;
-        this.props = props;
+        this.sistemaAuthService = sistemaAuthService;
     }
 
     public ClassificarResponse classificar(ClassificarRequest request, String accessToken) {
-        String token = accessToken != null ? accessToken : props.sistema().jwt();
+        String token = accessToken != null ? accessToken : sistemaAuthService.token();
         return sgsmIaClient.post()
                 .uri("/ia/whatsapp/classificar")
                 .header("Authorization", "Bearer " + token)

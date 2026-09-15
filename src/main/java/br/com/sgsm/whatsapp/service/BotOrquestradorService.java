@@ -34,8 +34,8 @@ public class BotOrquestradorService {
     private final ExecutorAcaoService executorAcaoService;
     private final AuthClient authClient;
     private final SgsmClient sgsmClient;
-    private final BotSistemaTokenService sistemaTokenService;
     private final BotProperties props;
+    private final SistemaAuthService sistemaAuthService;
     private final ObjectMapper objectMapper;
 
     public BotOrquestradorService(SessaoService sessaoService,
@@ -44,8 +44,8 @@ public class BotOrquestradorService {
                                   ExecutorAcaoService executorAcaoService,
                                   AuthClient authClient,
                                   SgsmClient sgsmClient,
-                                  BotSistemaTokenService sistemaTokenService,
                                   BotProperties props,
+                                  SistemaAuthService sistemaAuthService,
                                   ObjectMapper objectMapper) {
         this.sessaoService = sessaoService;
         this.sgsmIaClient = sgsmIaClient;
@@ -53,8 +53,8 @@ public class BotOrquestradorService {
         this.executorAcaoService = executorAcaoService;
         this.authClient = authClient;
         this.sgsmClient = sgsmClient;
-        this.sistemaTokenService = sistemaTokenService;
         this.props = props;
+        this.sistemaAuthService = sistemaAuthService;
         this.objectMapper = objectMapper;
     }
 
@@ -241,7 +241,7 @@ public class BotOrquestradorService {
                     // é alcançado após o usuário aceitar explicitamente (ver processar()).
                     sessao.isConsentimentoCadastroAceito()
             );
-            var pacienteResp = sgsmClient.criarPaciente(pacienteReq, sistemaTokenService.getToken());
+            var pacienteResp = sgsmClient.criarPaciente(pacienteReq, sistemaAuthService.token());
             String pacienteId = (String) pacienteResp.get("id");
 
             // 2. Registra no ms-sboot-auth

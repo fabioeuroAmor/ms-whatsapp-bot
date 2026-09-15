@@ -24,13 +24,16 @@ public class ExecutorAcaoService {
     private final SgsmClient sgsmClient;
     private final AuthClient authClient;
     private final EvolutionApiClient evolutionApiClient;
+    private final SistemaAuthService sistemaAuthService;
 
     public ExecutorAcaoService(SgsmClient sgsmClient,
                                AuthClient authClient,
-                               EvolutionApiClient evolutionApiClient) {
+                               EvolutionApiClient evolutionApiClient,
+                               SistemaAuthService sistemaAuthService) {
         this.sgsmClient = sgsmClient;
         this.authClient = authClient;
         this.evolutionApiClient = evolutionApiClient;
+        this.sistemaAuthService = sistemaAuthService;
     }
 
     public String executarAgendamento(SessaoBot sessao, Map<String, Object> payload) {
@@ -64,7 +67,7 @@ public class ExecutorAcaoService {
     // Gera OTP via ms-sboot-auth e envia ao usuário via WhatsApp
     public void enviarOtp(String numero, String email) {
         try {
-            Map<String, Object> resp = authClient.gerarOtp(email);
+            Map<String, Object> resp = authClient.gerarOtp(email, sistemaAuthService.token());
             String otp = (String) resp.get("otp");
             evolutionApiClient.enviarTexto(numero,
                     "Seu código de verificação SGSM: *" + otp + "*\n\n_Válido por 5 minutos._");

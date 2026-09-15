@@ -18,9 +18,22 @@ public class AuthClient {
         this.authClient = authClient;
     }
 
-    public Map<String, Object> gerarOtp(String email) {
+    public Map<String, Object> login(String email, String senha) {
+        return authClient.post()
+                .uri("/v1/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("email", email, "senha", senha))
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
+
+    // ms-sboot-auth só aceita POST /otp/gerar com o JWT de sistema (perfil DESENVOLVEDOR) —
+    // o bot é o único autorizado a disparar OTP em nome de outro usuário. O token é fornecido
+    // pelo chamador (SistemaAuthService), que o mantém renovado.
+    public Map<String, Object> gerarOtp(String email, String sistemaToken) {
         return authClient.post()
                 .uri("/v1/api/auth/otp/gerar")
+                .header("Authorization", "Bearer " + sistemaToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("email", email))
                 .retrieve()
@@ -32,24 +45,6 @@ public class AuthClient {
                 .uri("/v1/api/auth/otp/verificar")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("email", email, "otp", otp))
-                .retrieve()
-                .body(new ParameterizedTypeReference<>() {});
-    }
-
-    public Map<String, Object> login(String email, String senha) {
-        return authClient.post()
-                .uri("/v1/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("email", email, "senha", senha))
-                .retrieve()
-                .body(new ParameterizedTypeReference<>() {});
-    }
-
-    public Map<String, Object> refresh(String refreshToken) {
-        return authClient.post()
-                .uri("/v1/api/auth/refresh")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("refreshToken", refreshToken))
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
     }

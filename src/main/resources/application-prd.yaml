@@ -19,7 +19,6 @@ bot:
   auth:
     base-url: ${AUTH_URL}
   sistema:
-    jwt: ${BOT_SISTEMA_JWT:}
     email: ${BOT_SISTEMA_EMAIL}
     senha: ${BOT_SISTEMA_SENHA}
 
