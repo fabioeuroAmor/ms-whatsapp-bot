@@ -46,9 +46,11 @@ public class RestClientConfig {
     @Bean
     @Qualifier("sgsmIaRestClient")
     public RestClient sgsmIaRestClient() {
-        // Timeout de 45s: o LLM pode demorar mas precisa ser responsivo para WhatsApp
+        // Timeout de 45s: o LLM pode demorar mas precisa ser responsivo para WhatsApp.
+        // X-Service-Key: o sgsm-ia só aceita /ia/whatsapp/** vindo do bot (além do JWT)
         return builder()
                 .baseUrl(props.sgsmIa().baseUrl())
+                .defaultHeader("X-Service-Key", props.sgsmIa().serviceKey())
                 .requestFactory(factory(Duration.ofSeconds(5), Duration.ofSeconds(45)))
                 .build();
     }

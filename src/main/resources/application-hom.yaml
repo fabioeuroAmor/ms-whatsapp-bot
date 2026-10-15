@@ -11,6 +11,7 @@ bot:
     webhook-secret: ${EVOLUTION_WEBHOOK_SECRET}
   sgsm-ia:
     base-url: ${SGSM_IA_URL}
+    service-key: ${WHATSAPP_SERVICE_KEY}
   sgsm:
     base-url: ${SGSM_URL}
   auth:

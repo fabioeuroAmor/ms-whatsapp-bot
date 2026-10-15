@@ -21,7 +21,8 @@ public record BotProperties(
             String webhookSecret
     ) {}
 
-    public record SgsmIa(String baseUrl) {}
+    // serviceKey: segredo compartilhado exigido pelo sgsm-ia em /ia/whatsapp/** (header X-Service-Key)
+    public record SgsmIa(String baseUrl, String serviceKey) {}
 
     public record Sgsm(String baseUrl) {}
 

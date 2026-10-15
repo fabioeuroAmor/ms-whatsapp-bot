@@ -46,7 +46,13 @@ public class SistemaAuthService {
         }
     }
 
+    // Se o login do startup falhou (ex.: ms-sboot-auth ainda subindo), tenta de novo na hora em
+    // vez de esperar o próximo ciclo de 10 min — o sgsm-ia exige JWT válido em /ia/whatsapp/**
+    // e um "Bearer null" derruba o atendimento com 401.
     public String token() {
+        if (tokenAtual.get() == null) {
+            renovarToken();
+        }
         return tokenAtual.get();
     }
 }
