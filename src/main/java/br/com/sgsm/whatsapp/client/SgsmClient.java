@@ -2,6 +2,7 @@ package br.com.sgsm.whatsapp.client;
 
 import br.com.sgsm.whatsapp.dto.AgendamentoCreateRequest;
 import br.com.sgsm.whatsapp.dto.PacienteCreateRequest;
+import br.com.sgsm.whatsapp.dto.ReservaCreateRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
@@ -47,6 +48,25 @@ public class SgsmClient {
                 .body(req)
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
+    }
+
+    // Segura o horário por alguns minutos enquanto o paciente confirma (409 = ocupado, com alternativas)
+    public Map<String, Object> reservarHorario(ReservaCreateRequest req, String accessToken) {
+        return sgsmClient.post()
+                .uri("/v1/api/agendamentos/reservas")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(req)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
+
+    public void liberarReserva(String reservaToken, String accessToken) {
+        sgsmClient.delete()
+                .uri("/v1/api/agendamentos/reservas/" + reservaToken)
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve()
+                .toBodilessEntity();
     }
 
     public void cancelarAgendamento(String agendamentoId, String accessToken) {

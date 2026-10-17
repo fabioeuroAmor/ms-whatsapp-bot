@@ -150,8 +150,19 @@ public class BotOrquestradorService {
                 if (!resp.getDadosFaltantes().isEmpty() || !resp.isRequerConfirmacao()) {
                     yield resp.getRespostaUsuario();
                 }
-                // Todos os dados presentes: salva confirmação pendente
+                // Todos os dados presentes: pré-reserva o horário e salva a confirmação pendente.
+                // Um pedido anterior ainda não confirmado é substituído (libera a reserva antiga).
+                liberarReservaPendente(sessao);
                 var payload = montarPayloadAgendamento(resp.getEntidades(), sessao);
+                var reserva = executorAcaoService.reservar(sessao, payload);
+                if (reserva.situacao() == ExecutorAcaoService.SituacaoReserva.INDISPONIVEL) {
+                    sessao.setConfirmacaoPendente(null);
+                    sessaoService.adicionarHistorico(sessao, "ASSISTENTE", reserva.mensagem());
+                    yield reserva.mensagem();
+                }
+                if (reserva.token() != null) {
+                    payload.put(ExecutorAcaoService.CHAVE_RESERVA, reserva.token());
+                }
                 sessao.setConfirmacaoPendente(new ConfirmacaoPendente("AGENDAR", payload));
                 yield resp.getRespostaUsuario();
             }
@@ -202,6 +213,7 @@ public class BotOrquestradorService {
             }
 
             case RECUSAR -> {
+                liberarReservaPendente(sessao);
                 sessao.setConfirmacaoPendente(null);
                 yield "Tudo bem! " + menuPrincipal(sessao);
             }
@@ -212,6 +224,16 @@ public class BotOrquestradorService {
     }
 
     // --- Métodos privados de suporte ---
+
+    private void liberarReservaPendente(SessaoBot sessao) {
+        var pendente = sessao.getConfirmacaoPendente();
+        if (pendente != null && "AGENDAR".equals(pendente.getTipo()) && pendente.getPayload() != null) {
+            Object token = pendente.getPayload().get(ExecutorAcaoService.CHAVE_RESERVA);
+            if (token != null) {
+                executorAcaoService.liberarReserva(sessao, token.toString());
+            }
+        }
+    }
 
     private String executarConfirmacao(SessaoBot sessao) {
         return switch (sessao.getConfirmacaoPendente().getTipo()) {
