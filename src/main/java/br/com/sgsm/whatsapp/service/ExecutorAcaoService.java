@@ -211,7 +211,19 @@ public class ExecutorAcaoService {
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
     }
 
-    private LocalDate parseData(String data) {
+    // DD/MM/AAAA (como o paciente escreve) ou yyyy-MM-dd -> yyyy-MM-dd; o resto segue como veio
+    // para o sgsm devolver a validação dele
+    static String dataIso(String data) {
+        if (data == null) return null;
+        String limpa = data.trim();
+        try {
+            return parseData(limpa).toString();
+        } catch (Exception e) {
+            return limpa;
+        }
+    }
+
+    private static LocalDate parseData(String data) {
         if (data.matches("\\d{4}-\\d{2}-\\d{2}")) {
             return LocalDate.parse(data);
         }

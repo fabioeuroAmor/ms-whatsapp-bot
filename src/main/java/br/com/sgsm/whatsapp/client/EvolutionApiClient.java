@@ -34,8 +34,8 @@ public class EvolutionApiClient {
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
-            log.debug("Mensagem enviada para {}: {}", numero,
-                    texto.substring(0, Math.min(50, texto.length())));
+            // só o tamanho: o texto pode ter código de verificação (OTP) ou dado pessoal
+            log.debug("Mensagem enviada para {} ({} caracteres)", numero, texto.length());
         } catch (Exception e) {
             log.error("Erro ao enviar mensagem para {}: {}", numero, e.getMessage());
         }

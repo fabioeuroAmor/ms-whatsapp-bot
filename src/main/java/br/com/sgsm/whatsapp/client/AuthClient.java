@@ -40,6 +40,17 @@ public class AuthClient {
                 .body(new ParameterizedTypeReference<>() {});
     }
 
+    // Login de paciente que já tem conta: o auth manda o código ao e-mail da conta (não devolve o código)
+    public void enviarOtpPorEmail(String email, String sistemaToken) {
+        authClient.post()
+                .uri("/v1/api/auth/otp/enviar-email")
+                .header("Authorization", "Bearer " + sistemaToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("email", email))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     public Map<String, Object> verificarOtp(String email, String otp) {
         return authClient.post()
                 .uri("/v1/api/auth/otp/verificar")

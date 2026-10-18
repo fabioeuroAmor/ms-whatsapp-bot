@@ -75,8 +75,8 @@ public class WebhookController {
             }
 
             String nomeUsuario = payload.getData().getPushName();
-            log.debug("Webhook recebido de {}: '{}'", numero,
-                    texto.substring(0, Math.min(50, texto.length())));
+            // só o tamanho: o paciente digita OTP, CPF e e-mail nesta conversa
+            log.debug("Webhook recebido de {} ({} caracteres)", numero, texto.length());
 
             // Processa em virtual thread para não bloquear o webhook e permitir resposta rápida
             final String textoFinal = texto;

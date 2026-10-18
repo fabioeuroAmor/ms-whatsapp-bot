@@ -102,6 +102,17 @@ public class BotOrquestradorService {
             return;
         }
 
+        // Paciente com conta (site/clínica) ainda não autenticado que manda só o e-mail: inicia o login
+        // sem depender da IA classificar a mensagem como AUTENTICAR
+        if (sessao.getAccessToken() == null && sessao.getConfirmacaoPendente() == null
+                && (sessao.getDadosCadastro() == null || sessao.getDadosCadastro().isEmpty())
+                && EMAIL.matcher(texto.trim()).matches()) {
+            String resposta = iniciarLoginPorEmail(sessao, texto.trim());
+            sessaoService.salvar(sessao);
+            evolutionApiClient.enviarTexto(numero, resposta);
+            return;
+        }
+
         // 3. RAG: Classificar intenção via sgsm-ia
         var classificarReq = new ClassificarRequest(
                 texto,
@@ -136,6 +147,10 @@ public class BotOrquestradorService {
             case CONSULTAR, CONVERSAR -> resp.getRespostaUsuario();
 
             case AUTENTICAR -> {
+                if (sessao.getAccessToken() == null && resp.getEntidades() != null
+                        && resp.getEntidades().getEmail() != null && !resp.getEntidades().getEmail().isBlank()) {
+                    yield iniciarLoginPorEmail(sessao, resp.getEntidades().getEmail().trim());
+                }
                 if (sessao.getAccessToken() == null) {
                     yield resp.getRespostaUsuario()
                             + "\n\n_Digite seu e-mail cadastrado para receber um código de verificação._";
@@ -152,8 +167,13 @@ public class BotOrquestradorService {
                 }
                 // Todos os dados presentes: pré-reserva o horário e salva a confirmação pendente.
                 // Um pedido anterior ainda não confirmado é substituído (libera a reserva antiga).
-                liberarReservaPendente(sessao);
                 var payload = montarPayloadAgendamento(resp.getEntidades(), sessao);
+                if (faltaDadoDoAgendamento(payload)) {
+                    // a IA marcou "confirmar" sem serviço/data/hora: o sgsm recusaria o agendamento
+                    yield "Para agendar, preciso saber o serviço (ou consulta), a data e o horário. "
+                            + "Pode me dizer qual consulta deseja e quando?";
+                }
+                liberarReservaPendente(sessao);
                 var reserva = executorAcaoService.reservar(sessao, payload);
                 if (reserva.situacao() == ExecutorAcaoService.SituacaoReserva.INDISPONIVEL) {
                     sessao.setConfirmacaoPendente(null);
@@ -225,6 +245,30 @@ public class BotOrquestradorService {
 
     // --- Métodos privados de suporte ---
 
+    private static final java.util.regex.Pattern EMAIL = java.util.regex.Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
+    // O código vai para o E-MAIL da conta (nunca para este WhatsApp): quem digitar o e-mail de outra
+    // pessoa não recebe o código. A resposta não revela se o e-mail tem conta.
+    private String iniciarLoginPorEmail(SessaoBot sessao, String email) {
+        try {
+            authClient.enviarOtpPorEmail(email, sistemaAuthService.token());
+        } catch (Exception e) {
+            log.warn("Falha ao pedir código de login por e-mail para a sessão {}: {}", sessao.getNumero(), e.getMessage());
+            return "Não consegui enviar o código agora. Tente novamente em alguns minutos.";
+        }
+        sessao.setConfirmacaoPendente(new ConfirmacaoPendente("OTP", Map.of("email", email)));
+        return "Se houver uma conta com o e-mail " + email + ", enviei para ele um código de 6 dígitos "
+                + "(vale 5 minutos). Digite o código aqui para entrar.";
+    }
+
+    private static boolean faltaDadoDoAgendamento(Map<String, Object> payload) {
+        for (String campo : List.of("servicoMedicoId", "data", "hora")) {
+            Object valor = payload.get(campo);
+            if (valor == null || valor.toString().isBlank()) return true;
+        }
+        return false;
+    }
+
     private void liberarReservaPendente(SessaoBot sessao) {
         var pendente = sessao.getConfirmacaoPendente();
         if (pendente != null && "AGENDAR".equals(pendente.getTipo()) && pendente.getPayload() != null) {
@@ -256,7 +300,7 @@ public class BotOrquestradorService {
             var pacienteReq = new PacienteCreateRequest(
                     (String) payload.get("nomeCompleto"),
                     (String) payload.get("cpf"),
-                    (String) payload.get("dataNascimento"),
+                    ExecutorAcaoService.dataIso((String) payload.get("dataNascimento")),
                     email,
                     sessao.getNumero(),
                     // Gate CONSENTIMENTO_CADASTRO no case CADASTRAR garante que este ponto só

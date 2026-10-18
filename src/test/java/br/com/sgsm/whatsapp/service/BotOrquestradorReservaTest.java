@@ -96,6 +96,30 @@ class BotOrquestradorReservaTest {
         verify(evolutionApiClient).enviarTexto(NUMERO, "Confirma a consulta em 20/10 às 13:00?");
     }
 
+    // Rodada 8 do QA: a IA marcou "confirmar" sem o serviço e o bot pedia "Sim" ao paciente
+    @Test
+    void agendarSemServicoPerguntaEmVezDeReservarOuPedirConfirmacao() {
+        classificarComo(IntentWhatsApp.AGENDAR);
+        var ent = new EntidadesExtraidas();
+        ent.setData("20/10/2026");
+        ent.setHora("13:00");
+        when(sgsmIaClient.classificar(any(), any())).thenAnswer(inv -> {
+            var resp = new ClassificarResponse();
+            resp.setIntent(IntentWhatsApp.AGENDAR);
+            resp.setRespostaUsuario("Confirma?");
+            resp.setRequerConfirmacao(true);
+            resp.setDadosFaltantes(List.of());
+            resp.setEntidades(ent);
+            return resp;
+        });
+
+        orquestrador.processar(NUMERO, "quero dia 20 às 13h", null);
+
+        assertThat(sessao.getConfirmacaoPendente()).isNull();
+        verify(executorAcaoService, never()).reservar(any(), any());
+        verify(evolutionApiClient).enviarTexto(eq(NUMERO), contains("preciso saber o serviço"));
+    }
+
     @Test
     void agendarSemReservaSegueParaConfirmacaoSemToken() {
         classificarComo(IntentWhatsApp.AGENDAR);

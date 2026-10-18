@@ -181,6 +181,15 @@ class ExecutorAcaoServiceTest {
         assertThat(service.executarAgendamento(sessao, payloadInvalido)).startsWith("Não foi possível");
     }
 
+    // Rodada 8 do QA: cadastro pelo bot com nascimento "15/04/1991" dava 400 no sgsm
+    @Test
+    void dataDeNascimentoDoPacienteViraIso() {
+        assertThat(ExecutorAcaoService.dataIso("15/04/1991")).isEqualTo("1991-04-15");
+        assertThat(ExecutorAcaoService.dataIso(" 1991-04-15 ")).isEqualTo("1991-04-15");
+        assertThat(ExecutorAcaoService.dataIso("abril de 91")).isEqualTo("abril de 91");
+        assertThat(ExecutorAcaoService.dataIso(null)).isNull();
+    }
+
     @Test
     void liberarReservaEhMelhorEsforco() {
         doThrow(new ResourceAccessException("timeout")).when(sgsmClient).liberarReserva("tok-1", "jwt-paciente");
