@@ -19,6 +19,8 @@ import java.util.Set;
 // Caso A do plano de notificacoes proativas: todo dia as 07:00, avisa cada medico ativo da
 // agenda de consultas do proprio dia. So leitura - nao cria, altera nem cancela agendamento,
 // so consulta o que ja existe e notifica.
+// WhatsApp por clinica (DW7): as consultas de cada clinica com numero conectado saem pelo numero
+// dela; o que nao tem clinica com numero (ou e domiciliar) segue pelo canal geral do SGSM.
 @Service
 public class AgendaDiariaService {
 
@@ -44,15 +46,35 @@ public class AgendaDiariaService {
         LocalDate hoje = LocalDate.now(ZONA);
         String token = sistemaAuthService.token();
         List<Map<String, Object>> medicos = sgsmClient.listarMedicosAtivos(token);
-        log.info("Agenda diária: enviando para {} médico(s) ativo(s) referente a {}.", medicos.size(), hoje);
+        Map<String, Map<String, Object>> canais = canaisPorClinica(token);
+        log.info("Agenda diária: enviando para {} médico(s) ativo(s) referente a {} ({} clínica(s) com WhatsApp).",
+                medicos.size(), hoje, canais.size());
 
         envioEmLoteHelper.executarComEspacamento(
                 medicos,
-                medico -> enviarAgendaDoMedico(medico, hoje, token),
+                medico -> enviarAgendaDoMedico(medico, hoje, token, canais),
                 medico -> String.valueOf(medico.get("id")));
     }
 
-    private void enviarAgendaDoMedico(Map<String, Object> medico, LocalDate hoje, String token) {
+    // estabelecimentoId -> canal conectado; sem sgsm/canais, tudo segue pelo canal geral
+    private Map<String, Map<String, Object>> canaisPorClinica(String token) {
+        try {
+            var canais = new java.util.HashMap<String, Map<String, Object>>();
+            for (var c : sgsmClient.listarCanaisConectados(token)) {
+                if (c.get("estabelecimentoId") != null && c.get("instancia") != null) {
+                    canais.put(String.valueOf(c.get("estabelecimentoId")), c);
+                }
+            }
+            return canais;
+        } catch (Exception e) {
+            log.warn("Agenda diária: não foi possível listar os WhatsApp das clínicas ({}); usando só o canal geral.",
+                    e.getMessage());
+            return Map.of();
+        }
+    }
+
+    private void enviarAgendaDoMedico(Map<String, Object> medico, LocalDate hoje, String token,
+                                      Map<String, Map<String, Object>> canais) {
         String medicoId = String.valueOf(medico.get("id"));
         String telefone = (String) medico.get("telefone");
         String nome = (String) medico.get("nome");
@@ -63,23 +85,44 @@ public class AgendaDiariaService {
         }
 
         List<Map<String, Object>> agendamentos = sgsmClient.listarAgendamentosDoDia(medicoId, hoje, token);
-        String texto = montarTexto(nome, hoje, agendamentos);
-        evolutionApiClient.enviarTexto(telefone, texto);
-    }
-
-    private String montarTexto(String nomeMedico, LocalDate data, List<Map<String, Object>> agendamentos) {
         var validos = agendamentos.stream()
                 .filter(a -> !STATUS_IGNORADOS.contains(String.valueOf(a.get("status"))))
                 .sorted(Comparator.comparing(a -> String.valueOf(a.get("dataHoraInicio"))))
                 .toList();
 
+        // consultas de clínicas com WhatsApp conectado: uma mensagem por clínica, pelo número dela
+        var porClinica = new java.util.LinkedHashMap<String, List<Map<String, Object>>>();
+        var geral = new java.util.ArrayList<Map<String, Object>>();
+        for (var a : validos) {
+            Object clinica = a.get("estabelecimentoId");
+            if (clinica != null && canais.containsKey(String.valueOf(clinica))) {
+                porClinica.computeIfAbsent(String.valueOf(clinica), k -> new java.util.ArrayList<>()).add(a);
+            } else {
+                geral.add(a);
+            }
+        }
+        porClinica.forEach((clinica, lista) -> {
+            var canal = canais.get(clinica);
+            Object nomeClinica = canal.get("estabelecimentoNome");
+            evolutionApiClient.enviarTexto(String.valueOf(canal.get("instancia")), telefone,
+                    montarTexto(nome, hoje, lista, nomeClinica == null ? null : String.valueOf(nomeClinica)));
+        });
+        // o resto (e o aviso de dia sem consultas) segue pelo canal geral
+        if (!geral.isEmpty() || porClinica.isEmpty()) {
+            evolutionApiClient.enviarTexto(telefone, montarTexto(nome, hoje, geral, null));
+        }
+    }
+
+    private String montarTexto(String nomeMedico, LocalDate data, List<Map<String, Object>> validos, String clinica) {
         if (validos.isEmpty()) {
             return "Bom dia, Dr(a). %s! Você não tem consultas agendadas para hoje (%s)."
                     .formatted(nomeMedico, data);
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Bom dia, Dr(a). %s! Sua agenda de hoje (%s):\n\n".formatted(nomeMedico, data));
+        sb.append(clinica == null
+                ? "Bom dia, Dr(a). %s! Sua agenda de hoje (%s):\n\n".formatted(nomeMedico, data)
+                : "Bom dia, Dr(a). %s! Sua agenda de hoje (%s) na %s:\n\n".formatted(nomeMedico, data, clinica));
         for (var a : validos) {
             String hora = OffsetDateTime.parse(String.valueOf(a.get("dataHoraInicio")))
                     .atZoneSameInstant(ZONA).format(HORA);

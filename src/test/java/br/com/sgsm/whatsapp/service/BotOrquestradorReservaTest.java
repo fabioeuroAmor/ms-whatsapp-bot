@@ -58,7 +58,9 @@ class BotOrquestradorReservaTest {
         sessao = SessaoBot.builder().numero(NUMERO).historico(new ArrayList<>()).consentimentoAceito(true).build();
         sessao.setAccessToken("jwt-paciente");
         sessao.setUsuarioId("pac-1");
-        when(sessaoService.obter(NUMERO)).thenReturn(sessao);
+        // clínica já escolhida no canal geral (sem ela o bot pergunta a clínica antes de agendar)
+        sessao.setEstabelecimentoId("clinica-1");
+        when(sessaoService.obter(NUMERO, null)).thenReturn(sessao);
     }
 
     private void classificarComo(IntentWhatsApp intent) {

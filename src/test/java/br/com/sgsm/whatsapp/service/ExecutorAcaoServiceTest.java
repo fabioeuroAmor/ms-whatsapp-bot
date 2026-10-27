@@ -86,6 +86,36 @@ class ExecutorAcaoServiceTest {
         assertThat(captor.getValue().dataHoraInicio()).isEqualTo("2026-10-20T13:00:00-03:00");
     }
 
+    // WhatsApp por clínica: reserva e agendamento já nascem na clínica do número (presencial)
+    @Test
+    void pedidoPeloNumeroDaClinicaLevaClinicaETipo() {
+        var payload = payload();
+        payload.put("estabelecimentoId", "clinica-a");
+        when(sgsmClient.reservarHorario(any(), anyString())).thenReturn(Map.of("token", "t", "reservado", true));
+
+        service.reservar(sessao, payload);
+        service.executarAgendamento(sessao, payload);
+
+        var reserva = ArgumentCaptor.forClass(ReservaCreateRequest.class);
+        verify(sgsmClient).reservarHorario(reserva.capture(), anyString());
+        assertThat(reserva.getValue().estabelecimentoId()).isEqualTo("clinica-a");
+        assertThat(reserva.getValue().tipo()).isEqualTo("PRESENCIAL");
+        var agendamento = ArgumentCaptor.forClass(AgendamentoCreateRequest.class);
+        verify(sgsmClient).criarAgendamento(agendamento.capture(), anyString());
+        assertThat(agendamento.getValue().estabelecimentoId()).isEqualTo("clinica-a");
+        assertThat(agendamento.getValue().tipo()).isEqualTo("PRESENCIAL");
+    }
+
+    @Test
+    void otpDoCadastroSaiPeloNumeroDaClinica() {
+        when(sistemaAuthService.token()).thenReturn("jwt-bot");
+        when(authClient.gerarOtp("m@a.com", "jwt-bot")).thenReturn(Map.of("otp", "123456"));
+
+        service.enviarOtp("sgsm-a", "5561", "m@a.com");
+
+        verify(evolutionApiClient).enviarTexto(eq("sgsm-a"), eq("5561"), contains("123456"));
+    }
+
     @Test
     void reservarComHorarioOcupadoDevolveAsAlternativas() {
         when(sgsmClient.reservarHorario(any(), anyString())).thenThrow(erro(HttpStatus.CONFLICT, CORPO_409));

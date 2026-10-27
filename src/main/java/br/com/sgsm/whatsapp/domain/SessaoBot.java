@@ -20,6 +20,11 @@ import java.util.Map;
 public class SessaoBot implements Serializable {
 
     private String numero;              // "5511999999999"
+    // WhatsApp por clínica: instância (número) que recebeu a conversa — null no canal geral do SGSM —
+    // e a clínica do atendimento (a do número; no canal geral, a escolhida pelo paciente)
+    private String instancia;
+    private String estabelecimentoId;
+    private String estabelecimentoNome;
     private String usuarioId;           // UUID após autenticação
     private String perfil;              // PACIENTE | MEDICO | FUNCIONARIO | null
     private String accessToken;         // JWT atual

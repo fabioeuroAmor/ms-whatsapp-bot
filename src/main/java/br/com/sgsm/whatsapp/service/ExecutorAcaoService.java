@@ -58,9 +58,12 @@ public class ExecutorAcaoService {
     // continua protegido pela constraint do banco (V013).
     public ResultadoReserva reservar(SessaoBot sessao, Map<String, Object> payload) {
         try {
+            String clinica = (String) payload.get("estabelecimentoId");
             var req = new ReservaCreateRequest(
                     (String) payload.get("servicoMedicoId"),
-                    combinarDataHora((String) payload.get("data"), (String) payload.get("hora")));
+                    combinarDataHora((String) payload.get("data"), (String) payload.get("hora")),
+                    clinica,
+                    clinica != null ? "PRESENCIAL" : null);
             Map<String, Object> resp = sgsmClient.reservarHorario(req, sessao.getAccessToken());
             if (resp != null && Boolean.TRUE.equals(resp.get("reservado")) && resp.get("token") != null) {
                 return new ResultadoReserva(SituacaoReserva.RESERVADO, resp.get("token").toString(), null);
@@ -122,11 +125,14 @@ public class ExecutorAcaoService {
     }
 
     private void criarAgendamento(SessaoBot sessao, Map<String, Object> payload, String dataHora, String reservaToken) {
+        String clinica = (String) payload.get("estabelecimentoId");
         var req = new AgendamentoCreateRequest(
                 (String) payload.get("pacienteId"),
                 (String) payload.get("servicoMedicoId"),
                 dataHora,
-                reservaToken);
+                reservaToken,
+                clinica,
+                clinica != null ? "PRESENCIAL" : null);
         sgsmClient.criarAgendamento(req, sessao.getAccessToken());
     }
 
@@ -188,10 +194,15 @@ public class ExecutorAcaoService {
 
     // Gera OTP via ms-sboot-auth e envia ao usuário via WhatsApp
     public void enviarOtp(String numero, String email) {
+        enviarOtp(null, numero, email);
+    }
+
+    // instancia: número da clínica que recebeu a conversa de cadastro (o código sai por ele)
+    public void enviarOtp(String instancia, String numero, String email) {
         try {
             Map<String, Object> resp = authClient.gerarOtp(email, sistemaAuthService.token());
             String otp = (String) resp.get("otp");
-            evolutionApiClient.enviarTexto(numero,
+            evolutionApiClient.enviarTexto(instancia, numero,
                     "Seu código de verificação SGSM: *" + otp + "*\n\n_Válido por 5 minutos._");
         } catch (Exception e) {
             log.error("Erro ao gerar/enviar OTP para {}: {}", email, e.getMessage());

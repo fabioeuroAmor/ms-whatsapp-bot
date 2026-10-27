@@ -59,19 +59,37 @@ public class BotOrquestradorService {
     }
 
     public void processar(String numero, String texto, String nomeUsuario) {
-        SessaoBot sessao = sessaoService.obter(numero);
+        processar(numero, texto, nomeUsuario, new CanalService.Canal(null, null, null));
+    }
+
+    // canal: número (instância) que recebeu a mensagem. No WhatsApp de uma clínica a conversa, o
+    // consentimento, o lead e o agendamento ficam ligados a ela; no canal geral, à clínica escolhida.
+    public void processar(String numero, String texto, String nomeUsuario, CanalService.Canal canal) {
+        SessaoBot sessao = sessaoService.obter(numero, canal.instancia());
+        if (!canal.geral()) {
+            sessao.setInstancia(canal.instancia());
+            sessao.setEstabelecimentoId(canal.estabelecimentoId());
+            sessao.setEstabelecimentoNome(canal.estabelecimentoNome());
+        }
         if (nomeUsuario != null && sessao.getNomeUsuario() == null) {
             sessao.setNomeUsuario(nomeUsuario);
+        }
+
+        // Consentimento já dado a esta clínica (DW6) vale para as próximas conversas
+        if (!sessao.isConsentimentoAceito() && sessao.getInstancia() != null && consentimentoVigente(sessao)) {
+            sessao.setConsentimentoAceito(true);
         }
 
         // 1. Consentimento LGPD (primeiro contato)
         if (!sessao.isConsentimentoAceito()) {
             if ("ACEITO".equalsIgnoreCase(texto.trim())) {
                 sessao.setConsentimentoAceito(true);
+                registrarConsentimentoNaClinica(sessao);
+                criarLeadSeNovo(sessao);
                 sessaoService.salvar(sessao);
-                evolutionApiClient.enviarTexto(numero, menuPrincipal(sessao));
+                responder(sessao, menuPrincipal(sessao));
             } else {
-                evolutionApiClient.enviarTexto(numero, props.consentimento().mensagem());
+                responder(sessao, props.consentimento().mensagem());
                 sessaoService.salvar(sessao);
             }
             return;
@@ -86,10 +104,10 @@ public class BotOrquestradorService {
                 sessao.setConsentimentoCadastroAceito(true);
                 sessao.setConfirmacaoPendente(null);
                 sessaoService.salvar(sessao);
-                evolutionApiClient.enviarTexto(numero,
+                responder(sessao,
                         "Consentimento registrado! Pode me informar seu nome completo, CPF, data de nascimento e e-mail para o cadastro.");
             } else {
-                evolutionApiClient.enviarTexto(numero, props.consentimentoCadastro().mensagem());
+                responder(sessao, props.consentimentoCadastro().mensagem());
                 sessaoService.salvar(sessao);
             }
             return;
@@ -102,6 +120,14 @@ public class BotOrquestradorService {
             return;
         }
 
+        // Canal geral: resposta à pergunta "em qual clínica?" feita antes de agendar (DW4)
+        if (sessao.getConfirmacaoPendente() != null
+                && "ESCOLHER_CLINICA".equals(sessao.getConfirmacaoPendente().getTipo())) {
+            responder(sessao, escolherClinica(sessao, texto));
+            sessaoService.salvar(sessao);
+            return;
+        }
+
         // Paciente com conta (site/clínica) ainda não autenticado que manda só o e-mail: inicia o login
         // sem depender da IA classificar a mensagem como AUTENTICAR
         if (sessao.getAccessToken() == null && sessao.getConfirmacaoPendente() == null
@@ -109,7 +135,7 @@ public class BotOrquestradorService {
                 && EMAIL.matcher(texto.trim()).matches()) {
             String resposta = iniciarLoginPorEmail(sessao, texto.trim());
             sessaoService.salvar(sessao);
-            evolutionApiClient.enviarTexto(numero, resposta);
+            responder(sessao, resposta);
             return;
         }
 
@@ -124,12 +150,14 @@ public class BotOrquestradorService {
                 sessao.getPerfil(),
                 sessao.getConfirmacaoPendente() != null
                         ? serializarConfirmacao(sessao.getConfirmacaoPendente())
-                        : null
+                        : null,
+                sessao.getEstabelecimentoId(),
+                sessao.getEstabelecimentoNome()
         );
 
         ClassificarResponse resp = sgsmIaClient.classificar(classificarReq, sessao.getAccessToken());
         if (resp == null) {
-            evolutionApiClient.enviarTexto(numero,
+            responder(sessao,
                     "Serviço temporariamente indisponível. Tente novamente em alguns instantes.");
             return;
         }
@@ -161,6 +189,9 @@ public class BotOrquestradorService {
             case AGENDAR -> {
                 if (sessao.getAccessToken() == null) {
                     yield "Para agendar, primeiro preciso confirmar sua identidade.\n_Digite seu e-mail cadastrado:_";
+                }
+                if (sessao.getEstabelecimentoId() == null) {
+                    yield pedirClinica(sessao);
                 }
                 if (!resp.getDadosFaltantes().isEmpty() || !resp.isRequerConfirmacao()) {
                     yield resp.getRespostaUsuario();
@@ -240,10 +271,120 @@ public class BotOrquestradorService {
         };
 
         sessaoService.salvar(sessao);
-        evolutionApiClient.enviarTexto(numero, respostaFinal != null ? respostaFinal : "...");
+        responder(sessao, respostaFinal != null ? respostaFinal : "...");
     }
 
     // --- Métodos privados de suporte ---
+
+    static final String VERSAO_TERMO_WHATSAPP = "whatsapp-lgpd-v1";
+
+    // Responde pelo mesmo número que recebeu a conversa (instância null = canal geral)
+    private void responder(SessaoBot sessao, String texto) {
+        if (sessao.getInstancia() == null) {
+            evolutionApiClient.enviarTexto(sessao.getNumero(), texto);
+        } else {
+            evolutionApiClient.enviarTexto(sessao.getInstancia(), sessao.getNumero(), texto);
+        }
+    }
+
+    private boolean consentimentoVigente(SessaoBot sessao) {
+        try {
+            return sgsmClient.consentimentoVigente(sessao.getNumero(), sessao.getEstabelecimentoId(), sistemaAuthService.token());
+        } catch (Exception e) {
+            log.warn("Não foi possível consultar o consentimento da sessão {}: {}", sessao.getNumero(), e.getMessage());
+            return false; // na dúvida, pede o aceite de novo
+        }
+    }
+
+    private void registrarConsentimentoNaClinica(SessaoBot sessao) {
+        if (sessao.getInstancia() == null) return;
+        try {
+            sgsmClient.registrarConsentimento(sessao.getNumero(), sessao.getEstabelecimentoId(), VERSAO_TERMO_WHATSAPP,
+                    sistemaAuthService.token());
+        } catch (Exception e) {
+            log.error("Falha ao registrar o consentimento da sessão {} na clínica {}: {}",
+                    sessao.getNumero(), sessao.getEstabelecimentoId(), e.getMessage());
+        }
+    }
+
+    // Primeiro contato por este número no WhatsApp da clínica: lead no CRM dela (uma vez por número)
+    private void criarLeadSeNovo(SessaoBot sessao) {
+        if (sessao.getInstancia() == null || sessaoService.leadDe(sessao.getEstabelecimentoId(), sessao.getNumero()) != null) {
+            return;
+        }
+        try {
+            String nome = sessao.getNomeUsuario() != null ? sessao.getNomeUsuario() : "Contato WhatsApp";
+            String leadId = sgsmIaClient.criarLead(nome, sessao.getNumero(), sessao.getEstabelecimentoId());
+            if (leadId != null) {
+                sessaoService.guardarLead(sessao.getEstabelecimentoId(), sessao.getNumero(), leadId);
+            }
+        } catch (Exception e) {
+            log.warn("Falha ao criar o lead da sessão {}: {}", sessao.getNumero(), e.getMessage());
+        }
+    }
+
+    // Paciente identificado (cadastro ou login): vínculo com a clínica (DW5) e lead convertido
+    private void vincularAClinica(SessaoBot sessao, String pacienteId) {
+        if (sessao.getEstabelecimentoId() == null || pacienteId == null) return;
+        try {
+            sgsmClient.vincularPaciente(pacienteId, sessao.getEstabelecimentoId(), sessao.getNumero(), sistemaAuthService.token());
+        } catch (Exception e) {
+            log.warn("Falha ao vincular o paciente {} à clínica {}: {}", pacienteId, sessao.getEstabelecimentoId(), e.getMessage());
+        }
+        String lead = sessaoService.leadDe(sessao.getEstabelecimentoId(), sessao.getNumero());
+        if (lead != null && !LEAD_CONVERTIDO.equals(lead)) {
+            try {
+                sgsmIaClient.converterLead(lead);
+                sessaoService.guardarLead(sessao.getEstabelecimentoId(), sessao.getNumero(), LEAD_CONVERTIDO);
+            } catch (Exception e) {
+                log.warn("Falha ao converter o lead {}: {}", lead, e.getMessage());
+            }
+        }
+    }
+
+    static final String LEAD_CONVERTIDO = "CONVERTIDO";
+
+    // Canal geral: lista as clínicas para o paciente escolher onde agendar
+    private String pedirClinica(SessaoBot sessao) {
+        List<Map<String, Object>> clinicas;
+        try {
+            clinicas = sgsmClient.listarEstabelecimentosAtivos(sistemaAuthService.token());
+        } catch (Exception e) {
+            log.warn("Falha ao listar clínicas para a sessão {}: {}", sessao.getNumero(), e.getMessage());
+            return "Não consegui carregar as clínicas agora. Tente novamente em alguns minutos.";
+        }
+        if (clinicas == null || clinicas.isEmpty()) {
+            return "No momento não há clínicas disponíveis para agendamento por aqui.";
+        }
+        var opcoes = new java.util.ArrayList<Map<String, Object>>();
+        var texto = new StringBuilder("Em qual clínica você quer ser atendido(a)?\n");
+        for (var c : clinicas.stream().limit(10).toList()) {
+            opcoes.add(Map.of("id", String.valueOf(c.get("id")), "nome", String.valueOf(c.get("nome"))));
+            texto.append("\n*").append(opcoes.size()).append(".* ").append(c.get("nome"));
+        }
+        sessao.setConfirmacaoPendente(new ConfirmacaoPendente("ESCOLHER_CLINICA", Map.of("opcoes", opcoes)));
+        return texto.append("\n\nResponda com o número da clínica.").toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String escolherClinica(SessaoBot sessao, String texto) {
+        var opcoes = (List<Map<String, Object>>) sessao.getConfirmacaoPendente().getPayload().get("opcoes");
+        int escolha;
+        try {
+            escolha = Integer.parseInt(texto.trim().replaceAll("\\D", ""));
+        } catch (NumberFormatException e) {
+            escolha = -1;
+        }
+        if (opcoes == null || escolha < 1 || escolha > opcoes.size()) {
+            return "Não entendi. Responda só com o número da clínica da lista.";
+        }
+        var clinica = opcoes.get(escolha - 1);
+        sessao.setEstabelecimentoId(String.valueOf(clinica.get("id")));
+        sessao.setEstabelecimentoNome(String.valueOf(clinica.get("nome")));
+        sessao.setConfirmacaoPendente(null);
+        return "Certo! Vou agendar na *" + sessao.getEstabelecimentoNome()
+                + "*. Me diga a consulta, a data e o horário que você quer.";
+    }
 
     private static final java.util.regex.Pattern EMAIL = java.util.regex.Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
@@ -309,6 +450,7 @@ public class BotOrquestradorService {
             );
             var pacienteResp = sgsmClient.criarPaciente(pacienteReq, sistemaAuthService.token());
             String pacienteId = (String) pacienteResp.get("id");
+            vincularAClinica(sessao, pacienteId);
 
             // 2. Registra no ms-sboot-auth
             String senhaTemp = UUID.randomUUID().toString().substring(0, 12);
@@ -317,7 +459,7 @@ public class BotOrquestradorService {
             // 3. Inicia fluxo OTP para ativar e autenticar
             sessao.setConfirmacaoPendente(
                     new ConfirmacaoPendente("OTP", Map.of("email", email)));
-            executorAcaoService.enviarOtp(sessao.getNumero(), email);
+            executorAcaoService.enviarOtp(sessao.getInstancia(), sessao.getNumero(), email);
 
             return "Cadastro criado! Para ativar sua conta, digite o código que acabei de enviar para este WhatsApp.";
         } catch (Exception e) {
@@ -341,10 +483,13 @@ public class BotOrquestradorService {
                 log.error("Erro ao buscar referenciaId em /auth/me para {}: {}", sessao.getNumero(), e.getMessage());
             }
             sessao.setConfirmacaoPendente(null);
+            if ("PACIENTE".equals(sessao.getPerfil())) {
+                vincularAClinica(sessao, sessao.getUsuarioId());
+            }
             sessaoService.salvar(sessao);
-            evolutionApiClient.enviarTexto(numero, "Conta ativada com sucesso! " + menuPrincipal(sessao));
+            responder(sessao, "Conta ativada com sucesso! " + menuPrincipal(sessao));
         } catch (Exception e) {
-            evolutionApiClient.enviarTexto(numero,
+            responder(sessao,
                     "Código incorreto ou expirado. Tente novamente.");
         }
     }
@@ -364,8 +509,9 @@ public class BotOrquestradorService {
             payload.put("data", ent.getData());
             payload.put("hora", ent.getHora());
         }
-        // ID do paciente vem da sessão autenticada
+        // ID do paciente vem da sessão autenticada; a clínica, do número (ou da escolha no canal geral)
         payload.put("pacienteId", sessao.getUsuarioId());
+        payload.put("estabelecimentoId", sessao.getEstabelecimentoId());
         return payload;
     }
 

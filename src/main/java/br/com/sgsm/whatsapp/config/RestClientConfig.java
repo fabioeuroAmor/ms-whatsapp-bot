@@ -4,9 +4,10 @@ import io.micrometer.observation.ObservationRegistry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 
 @Configuration
@@ -20,9 +21,14 @@ public class RestClientConfig {
         this.observationRegistry = observationRegistry;
     }
 
-    private static SimpleClientHttpRequestFactory factory(Duration connectTimeout, Duration readTimeout) {
-        var factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(connectTimeout);
+    // HttpClient do JDK: o HttpURLConnection (SimpleClientHttpRequestFactory) não aceita PATCH, e a
+    // conversão do lead no sgsm-ia é PATCH (QA WA-B09: "Invalid HTTP method: PATCH")
+    static JdkClientHttpRequestFactory factory(Duration connectTimeout, Duration readTimeout) {
+        var httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(connectTimeout)
+                .build();
+        var factory = new JdkClientHttpRequestFactory(httpClient);
         factory.setReadTimeout(readTimeout);
         return factory;
     }

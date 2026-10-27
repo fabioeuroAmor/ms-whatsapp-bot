@@ -23,11 +23,14 @@ public class WebhookController {
 
     private final BotOrquestradorService botOrquestradorService;
     private final BotProperties props;
+    private final br.com.sgsm.whatsapp.service.CanalService canalService;
 
     public WebhookController(BotOrquestradorService botOrquestradorService,
-                             BotProperties props) {
+                             BotProperties props,
+                             br.com.sgsm.whatsapp.service.CanalService canalService) {
         this.botOrquestradorService = botOrquestradorService;
         this.props = props;
+        this.canalService = canalService;
     }
 
     @PostMapping("/evolution")
@@ -78,10 +81,17 @@ public class WebhookController {
             // só o tamanho: o paciente digita OTP, CPF e e-mail nesta conversa
             log.debug("Webhook recebido de {} ({} caracteres)", numero, texto.length());
 
+            // WhatsApp por clínica: a clínica vem da instância que recebeu a mensagem (cadastro no sgsm)
+            var canal = canalService.resolver(payload.getInstance());
+            if (canal.isEmpty()) {
+                return ResponseEntity.ok().build();
+            }
+
             // Processa em virtual thread para não bloquear o webhook e permitir resposta rápida
             final String textoFinal = texto;
             final String nomeFinal = nomeUsuario;
-            Thread.ofVirtual().start(() -> botOrquestradorService.processar(numero, textoFinal, nomeFinal));
+            final var canalFinal = canal.get();
+            Thread.ofVirtual().start(() -> botOrquestradorService.processar(numero, textoFinal, nomeFinal, canalFinal));
 
         } catch (Exception e) {
             log.error("Erro ao processar webhook: {}", e.getMessage(), e);

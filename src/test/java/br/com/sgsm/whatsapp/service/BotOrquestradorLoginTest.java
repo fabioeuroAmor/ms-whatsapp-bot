@@ -46,7 +46,7 @@ class BotOrquestradorLoginTest {
         orquestrador = new BotOrquestradorService(sessaoService, sgsmIaClient, evolutionApiClient,
                 executorAcaoService, authClient, sgsmClient, null, sistemaAuthService, new ObjectMapper());
         sessao = SessaoBot.builder().numero(NUMERO).historico(new ArrayList<>()).consentimentoAceito(true).build();
-        when(sessaoService.obter(NUMERO)).thenReturn(sessao);
+        when(sessaoService.obter(NUMERO, null)).thenReturn(sessao);
         lenient().when(sistemaAuthService.token()).thenReturn("jwt-bot");
     }
 

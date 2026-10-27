@@ -31,10 +31,17 @@ public class SessaoService {
     }
 
     public SessaoBot obter(String numero) {
-        String json = redis.opsForValue().get(SESSAO_PREFIX + numero);
+        return obter(numero, null);
+    }
+
+    // Uma conversa por número + clínica: o mesmo paciente falando com duas clínicas tem duas sessões
+    // (instancia null = canal geral do SGSM, chave antiga)
+    public SessaoBot obter(String numero, String instancia) {
+        String json = redis.opsForValue().get(chave(numero, instancia));
         if (json == null) {
             return SessaoBot.builder()
                     .numero(numero)
+                    .instancia(instancia)
                     .historico(new ArrayList<>())
                     .consentimentoAceito(false)
                     .build();
@@ -45,6 +52,7 @@ public class SessaoService {
             log.warn("Falha ao deserializar sessão de {}: {}", numero, e.getMessage());
             return SessaoBot.builder()
                     .numero(numero)
+                    .instancia(instancia)
                     .historico(new ArrayList<>())
                     .consentimentoAceito(false)
                     .build();
@@ -55,13 +63,29 @@ public class SessaoService {
         try {
             String json = objectMapper.writeValueAsString(sessao);
             redis.opsForValue().set(
-                    SESSAO_PREFIX + sessao.getNumero(),
+                    chave(sessao.getNumero(), sessao.getInstancia()),
                     json,
                     Duration.ofMinutes(props.sessao().ttlMinutos())
             );
         } catch (Exception e) {
             log.error("Falha ao salvar sessão de {}: {}", sessao.getNumero(), e.getMessage());
         }
+    }
+
+    static String chave(String numero, String instancia) {
+        return instancia == null ? SESSAO_PREFIX + numero : SESSAO_PREFIX + instancia + ":" + numero;
+    }
+
+    // Marca do lead já criado para este número nesta clínica (não duplica entre sessões)
+    private static final String LEAD_PREFIX = "whatsapp:lead:";
+    private static final Duration TTL_LEAD = Duration.ofDays(180);
+
+    public String leadDe(String estabelecimentoId, String numero) {
+        return redis.opsForValue().get(LEAD_PREFIX + estabelecimentoId + ":" + numero);
+    }
+
+    public void guardarLead(String estabelecimentoId, String numero, String leadId) {
+        redis.opsForValue().set(LEAD_PREFIX + estabelecimentoId + ":" + numero, leadId, TTL_LEAD);
     }
 
     public void adicionarHistorico(SessaoBot sessao, String papel, String texto) {

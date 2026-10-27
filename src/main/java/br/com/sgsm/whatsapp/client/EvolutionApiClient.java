@@ -25,11 +25,16 @@ public class EvolutionApiClient {
     }
 
     public void enviarTexto(String numero, String texto) {
+        enviarTexto(null, numero, texto);
+    }
+
+    // instancia: número da clínica que recebeu a conversa (responde pelo mesmo número); null = canal geral
+    public void enviarTexto(String instancia, String numero, String texto) {
         try {
             // numero: "5511999999999" (sem @s.whatsapp.net)
             var body = Map.of("number", numero, "text", texto);
             evolutionClient.post()
-                    .uri("/message/sendText/" + props.evolution().instance())
+                    .uri("/message/sendText/" + (instancia != null ? instancia : props.evolution().instance()))
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()

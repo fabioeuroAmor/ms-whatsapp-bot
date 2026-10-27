@@ -69,6 +69,77 @@ public class SgsmClient {
                 .toBodilessEntity();
     }
 
+    // ── WhatsApp por clínica (endpoints internos do sgsm, token de sistema) ───────────────────
+
+    public Map<String, Object> resolverCanal(String instancia, String sistemaToken) {
+        return sgsmClient.get()
+                .uri("/v1/api/interno/whatsapp/canais/{instancia}", instancia)
+                .header("Authorization", "Bearer " + sistemaToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
+
+    public List<Map<String, Object>> listarCanaisConectados(String sistemaToken) {
+        return sgsmClient.get()
+                .uri("/v1/api/interno/whatsapp/canais")
+                .header("Authorization", "Bearer " + sistemaToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
+
+    public void vincularPaciente(String pacienteId, String estabelecimentoId, String telefone, String sistemaToken) {
+        sgsmClient.post()
+                .uri("/v1/api/interno/whatsapp/vinculos")
+                .header("Authorization", "Bearer " + sistemaToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("pacienteId", pacienteId, "estabelecimentoId", estabelecimentoId,
+                        "origem", "WHATSAPP", "telefone", telefone))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    public boolean consentimentoVigente(String telefone, String estabelecimentoId, String sistemaToken) {
+        Map<String, Object> resposta = sgsmClient.get()
+                .uri(uri -> uri.path("/v1/api/interno/whatsapp/consentimentos")
+                        .queryParam("telefone", telefone)
+                        .queryParam("estabelecimentoId", estabelecimentoId)
+                        .queryParam("canal", "WHATSAPP")
+                        .build())
+                .header("Authorization", "Bearer " + sistemaToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+        return resposta != null && Boolean.TRUE.equals(resposta.get("vigente"));
+    }
+
+    public void registrarConsentimento(String telefone, String estabelecimentoId, String versao, String sistemaToken) {
+        sgsmClient.post()
+                .uri("/v1/api/interno/whatsapp/consentimentos")
+                .header("Authorization", "Bearer " + sistemaToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("telefone", telefone, "estabelecimentoId", estabelecimentoId,
+                        "canal", "WHATSAPP", "versaoTexto", versao))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    // Canal geral do SGSM: o paciente escolhe a clínica antes de agendar
+    public List<Map<String, Object>> listarEstabelecimentosAtivos(String sistemaToken) {
+        return sgsmClient.get()
+                .uri(uri -> uri.path("/v1/api/estabelecimentos").queryParam("ativo", true).build())
+                .header("Authorization", "Bearer " + sistemaToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
+
+    // Agenda diária por clínica: médicos que atendem na clínica
+    public List<Map<String, Object>> listarMedicosDoEstabelecimento(String estabelecimentoId, String sistemaToken) {
+        return sgsmClient.get()
+                .uri("/v1/api/estabelecimentos/{id}/medicos", estabelecimentoId)
+                .header("Authorization", "Bearer " + sistemaToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
+
     public void cancelarAgendamento(String agendamentoId, String accessToken) {
         sgsmClient.patch()
                 .uri("/v1/api/agendamentos/" + agendamentoId + "/cancelar")
